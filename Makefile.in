@@ -1,0 +1,131 @@
+prefix=@prefix@
+exec_prefix=@exec_prefix@
+bindir=@bindir@
+libdir=@libdir@
+mandir=@mandir@
+mansubdir=@mansubdir@
+etcdir=${prefix}/etc
+srcdir=@srcdir@
+sysconfdir=@sysconfdir@
+includedir=@includedir@
+
+DESTDIR=
+
+CC=@CC@
+CFLAGS=  @CFLAGS@ @DEFS@ 
+CFLAGS+= -DSENDMAIL=\"@SENDMAIL@\" -DSKEYKEYS=\"${sysconfdir}/skeykeys\"
+LIBS=@LIBS@
+AR=@AR@
+RANLIB=@RANLIB@
+INSTALL=@INSTALL@
+INSTALL_PROGRAM=${INSTALL} -c -s -m 555
+INSTALL_MAN=${INSTALL} -c -m 444
+INSTALL_SCRIPT=${INSTALL} -c -m 555
+INSTALL_DATA=${INSTALL} -c -m 444
+PERL=@PERL@
+SENDMAIL=@SENDMAIL@
+TOUCH=@TOUCH@
+LDFLAGS=-L. @LDFLAGS@
+
+TARGETS=skey skeyinit skeyinfo skeyaudit
+LIBOBJS=skeylogin.o skeysubr.o put.o errx.o md4c.o md5c.o rmd160.o rmd160hl.o sha1.o sha1hl.o flock.o strlcpy.o login_cap.o
+SKEYOBJS=skey.o
+SKEYINITOBJS=skeyinit.o
+SKEYINFOOBJS=skeyinfo.o
+SKEYAUDITOBJS=skeyaudit.o
+
+
+SCRIPTS=skeyprune.pl
+
+TROFFMAN	= skey.1 skeyinit.1 skeyinfo.1 skeyaudit.1 skeyprune.8
+CATMAN		= skey.0 skeyinit.0 skeyinfo.0 skeyaudit.0 skeyprune.0
+MANPAGES	= @MANTYPE@
+
+PATHSUBS	= -D/etc/skeykeys=${sysconfdir}/skeykeys -D/usr/bin/perl=${PERL} -D/usr/lib/sendmail=${SENDMAIL}
+
+FIXPATHSCMD     = $(PERL) $(srcdir)/fixpaths $(PATHSUBS)
+
+HDRS=	skey.h sha1.h rmd160.h
+
+all: ${TARGETS} ${MANPAGES}
+
+${LIBOBJS}: config.h
+
+libskey.a: ${LIBOBJS}
+	${AR} rv $@ ${LIBOBJS}
+	${RANLIB} $@
+
+skey: libskey.a ${SKEYOBJS}
+	${CC} -o $@ ${SKEYOBJS} ${LDFLAGS} -lskey ${LIBS}
+
+skeyinit: libskey.a ${SKEYINITOBJS}
+	${CC} -o $@ ${SKEYINITOBJS} ${LDFLAGS} -lskey ${LIBS} 
+
+skeyinfo: libskey.a ${SKEYINFOOBJS}
+	${CC} -o $@ ${SKEYINFOOBJS} ${LDFLAGS} -lskey ${LIBS}
+
+skeyaudit: libskey.a ${SKEYAUDITOBJS}
+	${CC} -o $@ ${SKEYAUDITOBJS} ${LDFLAGS} -lskey ${LIBS}
+
+${MANPAGES} ${SCRIPTS}::
+	${FIXPATHSCMD} ${srcdir}/$@
+
+clean:
+	rm -f *.o *.a ${TARGETS} config.status config.cache config.log
+	rm -f *.out core
+
+distclean: clean
+	rm -f Makefile config.h core *~
+
+veryclean: distclean
+	rm -f configure config.h.in *.0
+
+catman-do:
+	@for f in $(TROFFMAN) ; do \
+		echo "$$f -> $${f%%.[18]}.0" ; \
+		nroff -mandoc $$f | cat -v | sed -e 's/.\^H//g' \
+		>$${f%%.[18]}.0 ; \
+	done
+
+install: ${TARGETS}
+	$(INSTALL) -d $(DESTDIR)$(bindir)
+	$(INSTALL) -d $(DESTDIR)$(libdir)
+	$(INSTALL) -d $(DESTDIR)$(mandir)
+	$(INSTALL) -d $(DESTDIR)$(etcdir)
+	$(INSTALL) -d $(DESTDIR)$(mandir)/$(mansubdir)1
+	$(INSTALL) -d $(DESTDIR)$(mandir)/$(mansubdir)8
+	$(INSTALL) -d $(DESTDIR)$(includedir)
+	$(INSTALL) -d $(DESTDIR)$(sysconfdir)
+	${INSTALL_DATA} libskey.a $(DESTDIR)$(libdir)
+	${INSTALL_DATA} ${HDRS} $(DESTDIR)$(includedir)
+	@for target in ${TARGETS}; do \
+		${INSTALL_PROGRAM} $$target $(DESTDIR)$(bindir); \
+	done
+	${INSTALL_SCRIPT} skeyprune.pl $(DESTDIR)$(bindir)/skeyprune
+	${INSTALL_MAN} skey.[01].out $(DESTDIR)$(mandir)/$(mansubdir)1/skey.1
+	${INSTALL_MAN} skeyinit.[01].out $(DESTDIR)$(mandir)/$(mansubdir)1/skeyinit.1
+	${INSTALL_MAN} skeyinfo.[01].out $(DESTDIR)$(mandir)/$(mansubdir)1/skeyinfo.1
+	${INSTALL_MAN} skeyaudit.[01].out $(DESTDIR)$(mandir)/$(mansubdir)1/skeyaudit.1
+	${INSTALL_MAN} skeyprune.[08].out $(DESTDIR)$(mandir)/$(mansubdir)8/skeyprune.1
+	${TOUCH} ${DESTDIR}${sysconfdir}/skeykeys
+
+uninstallall: uninstall
+	-rm -f $(DESTDIR)$(sysconfdir)/skeykeys
+
+uninstall:
+	-rm -f $(DESTDIR)$(bindir)/skey
+	-rm -f $(DESTDIR)$(bindir)/skeyinfo
+	-rm -f $(DESTDIR)$(bindir)/skeyinit
+	-rm -f $(DESTDIR)$(bindir)/skeyaudit
+	-rm -f $(DESTDIR)$(bindir)/skeyprune
+	-rm -f $(DESTDIR)$(libdir)/libskey.a
+	-rm -f $(DESTDIR)$(includedir)/skey.h
+	-rm -f $(DESTDIR)$(includedir)/sha1.h
+	-rm -f $(DESTDIR)$(includedir)/rmd160.h
+	-rm -f $(DESTDIR)$(mandir)/$(mansubdir)1/skey.1
+	-rm -f $(DESTDIR)$(mandir)/$(mansubdir)1/skeyinfo.1
+	-rm -f $(DESTDIR)$(mandir)/$(mansubdir)1/skeyinit.1
+	-rm -f $(DESTDIR)$(mandir)/$(mansubdir)1/skeyaudit.1
+	-rm -f $(DESTDIR)$(mandir)/$(mansubdir)8/skeyprune.8
+
+

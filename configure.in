@@ -1,0 +1,176 @@
+AC_INIT(acconfig.h)
+
+AC_CONFIG_HEADER(config.h)
+
+dnl Checks for programs.
+AC_PROG_CC
+AC_PROG_INSTALL
+AC_PROG_RANLIB
+AC_CHECK_PROG(AR, ar, ar)
+AC_PATH_PROG(PERL, perl)
+AC_PATH_PROG(TOUCH, touch)
+AC_PATH_PROG(SENDMAIL, sendmail, /usr/lib/sendmail, $PATH:/usr/sbin:/usr/lib:/usr/bin)
+AC_SUBST(PERL)
+AC_SUBST(SENDMAIL)
+
+dnl Checks for libraries.
+AC_CHECK_LIB(crypt, crypt, LIBS="$LIBS -lcrypt")
+AC_CHECK_LIB(ucb, flock, LIBS="$LIBS -lucb" LDFLAGS="$LDFLAGS -L/usr/ucblib")
+
+
+dnl Checks for header files.
+AC_HEADER_STDC
+AC_HEADER_SYS_WAIT
+AC_CHECK_HEADERS(fcntl.h limits.h sys/file.h sys/time.h sys/cdefs.h syslog.h unistd.h sha1.h rmd160.h md4.h md5.h md5global.h err.h crypt.h)
+
+dnl Checks for typedefs, structures, and compiler characteristics.
+AC_C_CONST
+AC_C_BIGENDIAN
+AC_TYPE_UID_T
+AC_TYPE_OFF_T
+AC_TYPE_SIZE_T
+AC_STRUCT_TM
+
+dnl Checks for data types
+AC_CHECK_SIZEOF(char, 1)
+AC_CHECK_SIZEOF(short int, 2)
+AC_CHECK_SIZEOF(int, 4)
+AC_CHECK_SIZEOF(long int, 4)
+AC_CHECK_SIZEOF(long long int, 8)
+
+dnl Check for some target-specific stuff
+case "$host" in
+*-*-aix*)
+        AFS_LIBS="-lld"
+        ;;
+*-*-hpux10*)
+        if test -z "$GCC"; then
+                CFLAGS="$CFLAGS -Aa"
+        fi
+        CFLAGS="$CFLAGS -D_HPUX_SOURCE"
+        AC_MSG_CHECKING(for HPUX trusted system password database)
+        if test -f /tcb/files/auth/system/default; then
+                AC_MSG_RESULT(yes)
+                AC_DEFINE(HAVE_HPUX_TRUSTED_SYSTEM_PW)
+                LIBS="$LIBS -lsec"
+                AC_MSG_WARN([This configuration is untested])
+        else
+                AC_MSG_RESULT(no)
+                AC_DEFINE(DISABLE_SHADOW)
+        fi
+        MANTYPE='$(CATMAN)'
+        mansubdir=cat
+        ;;
+*-*-irix5*)
+        MANTYPE='$(CATMAN)'
+        no_libsocket=1
+        no_libnsl=1
+        ;;
+*-*-irix6*)
+        MANTYPE='$(CATMAN)'
+        AC_MSG_WARN([*** Irix 6.x is not tested, please report you experiences *** ])
+        no_libsocket=1
+        no_libnsl=1
+        ;;
+*-*-linux*)
+        no_dev_ptmx=1
+        ;;
+*-*-netbsd*)
+        if test "$GOT_SSL" = "yes"; then
+                LDFLAGS="$LDFLAGS -R$ssldir/lib"
+        fi
+        ;;
+*-*-solaris*)
+        ;;
+*-*-sysv*)
+        MANTYPE='$(CATMAN)'
+        mansubdir=cat
+        LIBS="$LIBS -lgen -lsocket"
+        ;;
+esac
+
+
+dnl More checks for data types
+AC_MSG_CHECKING([for intXX_t types])
+AC_TRY_COMPILE(
+        [#include <sys/types.h>], 
+        [int16_t a; int32_t b; a = 1235; b = 1235;], 
+        [
+                AC_DEFINE(HAVE_INTXX_T)
+                AC_MSG_RESULT(yes)
+                have_intxx_t=1
+        ],
+        [AC_MSG_RESULT(no)]
+) 
+
+AC_MSG_CHECKING([for u_intXX_t types])
+AC_TRY_COMPILE(
+        [#include <sys/types.h>], 
+        [u_int16_t c; u_int32_t d; c = 1235; d = 1235;], 
+        [
+                AC_DEFINE(HAVE_U_INTXX_T)
+                AC_MSG_RESULT(yes)
+                have_u_intxx_t=1
+        ],
+        [AC_MSG_RESULT(no)]
+) 
+
+if test -z "$have_u_intxx_t" -o -z "$have_intxx_t" -a \
+           "x$ac_cv_header_sys_bitypes_h" = "xyes"
+then
+        AC_MSG_CHECKING([for intXX_t and u_intXX_t types in sys/bitypes.h])
+        AC_TRY_COMPILE(
+                [#include <sys/bitypes.h>], 
+                [
+                        u_int16_t c; u_int32_t d; 
+                        int16_t e; int32_t f;
+                        c = 1235; d = 1235;
+                        e = 1235; f = 1235;
+                ], 
+                [
+                        AC_DEFINE(HAVE_U_INTXX_T)
+                        AC_DEFINE(HAVE_INTXX_T)
+                        AC_MSG_RESULT(yes)
+                ],
+                [AC_MSG_RESULT(no)]
+        ) 
+fi
+
+AC_MSG_CHECKING([for uintXX_t types])
+AC_TRY_COMPILE(
+        [#include <sys/types.h>], 
+        [uint16_t c; uint32_t d; c = 1235; d = 1235;], 
+        [
+                AC_DEFINE(HAVE_UINTXX_T)
+                AC_MSG_RESULT(yes)
+        ],
+        [AC_MSG_RESULT(no)]
+) 
+
+AC_ARG_WITH(catman,
+        [  --with-catman=man|cat   Install preformatted manpages[no]],
+        [
+                MANTYPE='$(CATMAN)'
+                if test x"$withval" != x"yes" ; then
+                   mansubdir=$withval
+                else
+                   mansubdir=cat
+                fi
+        ], [
+                if test -z "$MANTYPE" ; then
+                        MANTYPE='$(TROFFMAN)'
+                        mansubdir=man
+                fi
+        ]
+)
+AC_SUBST(MANTYPE)
+AC_SUBST(mansubdir)
+
+dnl Checks for library functions.
+AC_FUNC_MEMCMP
+AC_TYPE_SIGNAL
+AC_FUNC_STRFTIME
+AC_FUNC_VPRINTF
+AC_CHECK_FUNCS(gethostname strcspn strdup strerror strspn strtol flock fcntl lockf strlcpy setusercontext)
+
+AC_OUTPUT(Makefile)

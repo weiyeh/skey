@@ -1,0 +1,17 @@
+*** Changes in version 1.1.5
+
+-  Bug fixes for errx/warnx
+
+*** Changes in version 1.1.4
+
+-  Sync with OpenBSD tree
+-  Minor bug fixes (flock.c, etc)
+
+*** Changes in version 1.1.3
+
+-  Check for md5global.h (cyrus' md5 implementation). 
+   Patch from Ben Lindstrom <mouring@pconline.com>
+-  Sync with OpenBSD tree.
+-  RPM spec file added. 
+   Patch from Craig I. Hagan <hagan@cih.com>
+
